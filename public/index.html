@@ -2,11 +2,34 @@
 <html lang="en">
   <head>
     <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <!-- <link rel="shortcut icon" href="%PUBLIC_URL%/favicon.ico"> -->
-    <title>COVID-19 Map</title>
+    <meta name="description" itemprop="description" content="Confirmed, recovered, and death count by country.">
+    <meta name="subject" content="Confirmed, recovered, and death count by country.">
+    <meta name="abstract" content="Confirmed, recovered, and death count by country.">
+    <meta name="topic" content="Confirmed, recovered, and death count by country.">
+    <meta name="robots" content="INDEX,FOLLOW">
+    <meta name="googlebot" content="INDEX,FOLLOW">
+    <meta name="format-detection" content="telephone=no">
+    <link rel="shortcut icon" href="./coronavirus-ico.jpg">
+    <title>COVID-19 World Map</title>
   </head>
   <body>
-      <!-- Canvas -->
+      <div class="title-container">
+          <h3>COVID-19 World Map</h3>
+          <i class="description">
+              Drag the globe and tap a country to view its details.
+          </i>
+      </div>
+      <div class="country-info">
+          <div class="country-name"></div>
+          <div class="country-confirmed"></div>
+          <div class="country-recovered"></div>
+          <div class="country-deaths"></div>
+          <div class="country-last-updated"></div>
+      </div>
+      <div class="canvas-container">
+          <div class="canvas-background"></div>
+      </div>
   </body>
 </html>

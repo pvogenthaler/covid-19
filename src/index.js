@@ -1,17 +1,29 @@
 import * as d3 from 'd3';
 import * as topojson from 'topojson-client';
 import versor from 'versor';
+import moment from 'moment';
 
-// Based on https://codepen.io/jorin/pen/YNajXZ
+import './style.scss';
 
-const SIZE = 960;
-const SPHERE = { type: 'Sphere' };
-let land, countries, currentCountry, covidCountries, countryList;
+/* Based on https://codepen.io/jorin/pen/YNajXZ */
 
-const current = d3.select('body').append('div').style('height', '10px');
-const canvas = d3.select('body').append('canvas')
-    .attr('width', SIZE)
-    .attr('height', SIZE);
+/* Globals */
+
+const graticule = d3.geoGraticule10();
+let land, countries, currentCountry, covidCountryList, countryList, covidCountryCache = {};
+
+/* Canvas */
+
+const $countryName = d3.select('.country-name').text('Country:');
+const $countryConfirmed = d3.select('.country-confirmed').text('Confirmed:');;
+const $countryRecovered = d3.select('.country-recovered').text('Recovered:');
+const $countryDeaths = d3.select('.country-deaths').text('Deaths:');
+const $countryLastUpdated = d3.select('.country-last-updated').text('Last Updated:');
+
+const { width, height } = document.querySelector('.canvas-container').getBoundingClientRect();
+const canvas = d3.select('.canvas-container').append('canvas')
+    .attr('width', width)
+    .attr('height', height);
 
 const context = canvas.node().getContext('2d');
 const projection = d3.geoOrthographic().precision(0.1);
@@ -19,6 +31,8 @@ const projection = d3.geoOrthographic().precision(0.1);
 const path = d3.geoPath()
     .projection(projection)
     .context(context);
+
+/* Render */
 
 const addFill = (obj, color) => {
     context.beginPath();
@@ -35,24 +49,32 @@ const addStroke = (obj, color) => {
     context.stroke();
 };
 
+const scale = () => {
+  projection
+    .scale((0.9 * Math.min(width, height)) / 2.1)
+    .translate([width / 2, height / 2]);
+}
+
 const render = () => {
-    context.clearRect(0, 0, SIZE, SIZE);
+    context.clearRect(0, 0, width, height);
 
-    addStroke(SPHERE, '#000');
-    addFill(SPHERE, '#2a2a2a');
+    const sphere = { type: 'Sphere' };
 
-    addStroke(land, '#000');
+    addStroke(sphere, 'black');
+    addFill(sphere, '#2a2a2a');
+
+    addStroke(land, 'black');
     addFill(land, '#737368');
 
-    // This breaks drag
-    // addStroke(countries, '#000')
+    addStroke(graticule, '#ccc');
 
-    !!currentCountry && addFill(currentCountry, '#a00');
+    !!currentCountry && addStroke(currentCountry, 'black');
+    !!currentCountry && addFill(currentCountry, 'darkred');
 };
 
-/* Handle Drag and Rotation */
+/* Rotation */
 
-let now, diff, rotation, lastTime, rotationDelay, v0, r0, q0;
+let now, diff, rotation, lastTime, v0, r0, q0, autorotate = null;
 const degPerMs = 6 / 1000;
 
 const rotate = elapsed => {
@@ -67,15 +89,18 @@ const rotate = elapsed => {
     lastTime = now;
 };
 
-const autorotate = d3.timer(rotate);
-
 const startRotation = delay => {
+    if (!autorotate) {
+        autorotate = d3.timer(rotate);
+    }
     autorotate.restart(rotate, delay || 0);
 };
 
 const stopRotation = () => {
     autorotate.stop();
 };
+
+/* Drag */
 
 function dragstarted() {
     v0 = versor.cartesian(projection.invert(d3.mouse(this)))
@@ -92,11 +117,15 @@ function dragged() {
     render();
 }
 
-const dragended = () => {
-  // startRotation(rotationDelay);
-};
+/* Hover */
 
-/* Handle Hover */
+const updateCountryInfo = (countryName = '', countryConfirmed = '', countryRecovered = '', countryDeaths = '', countryLastUpdated = '') => {
+    $countryName.text(`Country: ${countryName}`);
+    $countryConfirmed.text(`Confirmed: ${countryConfirmed}`);
+    $countryRecovered.text(`Recovered: ${countryRecovered}`);
+    $countryDeaths.text(`Deaths: ${countryDeaths}`);
+    $countryLastUpdated.text(`Last Updated: ${countryLastUpdated}`);
+};
 
 function mousemove() {
     if (!countries) return;
@@ -105,9 +134,11 @@ function mousemove() {
     if (country === currentCountry) return;
 
     if (!country) {
+        const shouldRender = currentCountry !== null;
+
         currentCountry = null;
-        current.text('');
-        render();
+        updateCountryInfo();
+        !!shouldRender && render();
     } else {
         currentCountry = country;
         render();
@@ -116,18 +147,22 @@ function mousemove() {
 }
 
 function enter(country) {
-  const enteredCountry = countryList.find(c => parseInt(c.id, 10) === parseInt(country.id, 10));
-  const covidCountry = covidCountries.find(c => parseInt(c.numericCode, 10) === parseInt(country.id, 10));
+    const enteredCountry = countryList.find(c => parseInt(c.id, 10) === parseInt(country.id, 10));
+    const covidCountry = covidCountryList.find(c => parseInt(c.numericCode, 10) === parseInt(country.id, 10));
 
-  if (!enteredCountry || !enteredCountry.name || !covidCountry.name) return;
+    if (!enteredCountry || !enteredCountry.name || !covidCountry.name) return;
 
-  fetch('https://covid19.mathdro.id/api/countries/' + covidCountry.alpha2Code)
-    .then(res => res.json())
-    .then(res => {
-        const countryText = !!enteredCountry && enteredCountry.name;
-        !!countryText ?
-            current.text(`${countryText} - Confirmed: ${res.confirmed ? res.confirmed.value : 0}, Recovered: ${res.recovered ? res.recovered.value : 0}, Deaths: ${res.deaths ? res.deaths.value : 0}`) :
-            current.text('');
+    if (!!covidCountryCache[covidCountry.alpha2Code]) {
+        const { confirmed, recovered, deaths, lastUpdate } = covidCountryCache[covidCountry.alpha2Code];
+        updateCountryInfo(enteredCountry.name, confirmed.value || 0, recovered.value || 0, deaths.value || 0, moment(lastUpdate).format('LLLL'));
+        return;
+    }
+
+    fetch('https://covid19.mathdro.id/api/countries/' + covidCountry.alpha2Code)
+        .then(res => res.json())
+        .then(({ confirmed = {}, recovered = {}, deaths = {}, lastUpdate = '' }) => {
+            covidCountryCache[covidCountry.alpha2Code] = { confirmed, recovered, deaths, lastUpdate };
+            updateCountryInfo(enteredCountry.name, confirmed.value || 0, recovered.value || 0, deaths.value || 0, moment(lastUpdate).format('LLLL'));
     });
 }
 
@@ -172,22 +207,23 @@ const init = () => {
                   countries = topojson.feature(world, world.objects.countries);
                   countryList = cList;
 
+                  scale();
                   render();
-              })
+                  startRotation();
+
+                  canvas
+                    .call(d3.drag()
+                      .on('start', dragstarted)
+                      .on('drag', dragged)
+                     )
+                    .on('mousemove', mousemove);
+              });
         })
         .catch(err => console.error(err));
 
-        canvas
-          .call(d3.drag()
-            .on('start', dragstarted)
-            .on('drag', dragged)
-            .on('end', dragended)
-           )
-          .on('mousemove', mousemove);
-
     fetch('https://restcountries.eu/rest/v2/all')
         .then(res => res.json())
-        .then(res => covidCountries = res);
+        .then(res => covidCountryList = res);
 };
 
 init();

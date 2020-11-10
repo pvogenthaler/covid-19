@@ -60,16 +60,17 @@ const render = () => {
 
     const sphere = { type: 'Sphere' };
 
-    addStroke(sphere, 'black');
     addFill(sphere, '#2a2a2a');
 
-    addStroke(land, 'black');
+    addStroke(land, '#1d1d1d');
     addFill(land, '#737368');
 
-    addStroke(graticule, '#ccc');
+    addStroke(countries, '#3d3d38');
 
-    !!currentCountry && addStroke(currentCountry, 'black');
-    !!currentCountry && addFill(currentCountry, 'darkred');
+    addStroke(graticule, '#767676');
+
+    !!currentCountry && addStroke(currentCountry, '#1d1d1d');
+    !!currentCountry && addFill(currentCountry, '#720000');
 };
 
 /* Rotation */
@@ -152,9 +153,11 @@ function enter(country) {
 
     if (!enteredCountry || !enteredCountry.name || !covidCountry.name) return;
 
+    const getValue = key => !!key.value ? key.value.toLocaleString() : '';
+
     if (!!covidCountryCache[covidCountry.alpha2Code]) {
         const { confirmed, recovered, deaths, lastUpdate } = covidCountryCache[covidCountry.alpha2Code];
-        updateCountryInfo(enteredCountry.name, confirmed.value || 0, recovered.value || 0, deaths.value || 0, moment(lastUpdate).format('LLLL'));
+        updateCountryInfo(enteredCountry.name, getValue(confirmed), getValue(recovered), getValue(deaths), !!moment(lastUpdate).isValid() ? moment(lastUpdate).format('LLLL') : '');
         return;
     }
 
@@ -162,7 +165,7 @@ function enter(country) {
         .then(res => res.json())
         .then(({ confirmed = {}, recovered = {}, deaths = {}, lastUpdate = '' }) => {
             covidCountryCache[covidCountry.alpha2Code] = { confirmed, recovered, deaths, lastUpdate };
-            updateCountryInfo(enteredCountry.name, confirmed.value || 0, recovered.value || 0, deaths.value || 0, moment(lastUpdate).format('LLLL'));
+            updateCountryInfo(enteredCountry.name, getValue(confirmed), getValue(recovered), getValue(deaths), !!moment(lastUpdate).isValid() ? moment(lastUpdate).format('LLLL') : '');
     });
 }
 

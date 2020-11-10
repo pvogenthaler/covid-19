@@ -66,6 +66,8 @@ const render = () => {
     addStroke(land, 'black');
     addFill(land, '#737368');
 
+    addStroke(countries, '#2a2a2a');
+
     addStroke(graticule, '#ccc');
 
     !!currentCountry && addStroke(currentCountry, 'black');
@@ -152,9 +154,11 @@ function enter(country) {
 
     if (!enteredCountry || !enteredCountry.name || !covidCountry.name) return;
 
+    const getValue = key => !!key.value ? key.value.toLocaleString() : 0;
+
     if (!!covidCountryCache[covidCountry.alpha2Code]) {
         const { confirmed, recovered, deaths, lastUpdate } = covidCountryCache[covidCountry.alpha2Code];
-        updateCountryInfo(enteredCountry.name, confirmed.value || 0, recovered.value || 0, deaths.value || 0, moment(lastUpdate).format('LLLL'));
+        updateCountryInfo(enteredCountry.name, getValue(confirmed) || 0, getValue(recovered) || 0, getValue(deaths) || 0, !!moment(lastUpdate).isValid() ? moment(lastUpdate).format('LLLL') : '');
         return;
     }
 
@@ -162,7 +166,8 @@ function enter(country) {
         .then(res => res.json())
         .then(({ confirmed = {}, recovered = {}, deaths = {}, lastUpdate = '' }) => {
             covidCountryCache[covidCountry.alpha2Code] = { confirmed, recovered, deaths, lastUpdate };
-            updateCountryInfo(enteredCountry.name, confirmed.value || 0, recovered.value || 0, deaths.value || 0, moment(lastUpdate).format('LLLL'));
+
+            updateCountryInfo(enteredCountry.name, getValue(confirmed) || 0, getValue(recovered) || 0, getValue(deaths) || 0, moment(lastUpdate).isValid() ? moment(lastUpdate).format('LLLL') : '');
     });
 }
 
